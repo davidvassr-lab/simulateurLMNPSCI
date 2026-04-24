@@ -9,273 +9,100 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ══════════════════════════════════════════
-   VARIABLES — même palette que le dashboard
-   ══════════════════════════════════════════ */
-:root {
-  --bg:        #0f1419;
-  --panel:     #1a2029;
-  --panel2:    #232b36;
-  --border:    #2d3748;
-  --text:      #e8ecef;
-  --text-dim:  #8a95a5;
-  --text-mute: #5a6470;
-  --accent:    #4f8cff;
-  --green:     #22c55e;
-  --red:       #ef4444;
-  --amber:     #f59e0b;
-  --shadow:    0 4px 20px rgba(0,0,0,0.4);
-}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-/* ── Fond global ── */
-html, body,
-[class*="css"],
-.stApp,
-.block-container,
-section[data-testid="stSidebar"] {
-    font-family: 'Inter', sans-serif !important;
-    background-color: var(--bg) !important;
-    color: var(--text) !important;
-}
+h1 { font-size: 1.7rem !important; font-weight: 700 !important; color: #111827 !important; }
 
-.block-container { padding-top: 2rem !important; max-width: 780px !important; }
-
-/* ── Inputs Streamlit ── */
-input, textarea,
-div[data-baseweb="input"] > div,
-div[data-baseweb="base-input"] {
-    background-color: var(--panel2) !important;
-    border-color: var(--border) !important;
-    color: var(--text) !important;
-    border-radius: 8px !important;
-}
-label, .stNumberInput label, p {
-    color: var(--text-dim) !important;
-    font-size: 0.87rem !important;
-}
-
-/* ── Titres H1 ── */
-h1 {
-    font-size: 1.6rem !important;
-    font-weight: 700 !important;
-    background: linear-gradient(135deg, #4f8cff, #a855f7) !important;
-    -webkit-background-clip: text !important;
-    -webkit-text-fill-color: transparent !important;
-    background-clip: text !important;
-    letter-spacing: 0.01em !important;
-}
-
-/* ── Titres H3 (sections) ── */
-h3 {
-    font-size: 0.7rem !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.15em !important;
-    color: var(--text-dim) !important;
-    margin-top: 1.8rem !important;
-    margin-bottom: 0.5rem !important;
-    -webkit-text-fill-color: var(--text-dim) !important;
-}
-
-hr { border-color: var(--border) !important; margin: 1.5rem 0 !important; }
-
-/* ══════════════════════════════════════════
-   KPI CARDS — style dashboard
-   ══════════════════════════════════════════ */
-.kpi-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-.kpi-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
+.bloc {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
     border-radius: 12px;
-    padding: 18px 20px;
-    position: relative;
-    overflow: hidden;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 1rem;
 }
-.kpi-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: var(--accent);
-}
-.kpi-card.green::before { background: var(--green); }
-.kpi-card.amber::before { background: var(--amber); }
-.kpi-card.red::before   { background: var(--red); }
-.kpi-card.purple::before { background: #a855f7; }
 
-.kpi-label {
-    font-size: 0.65rem;
+.bloc-title {
+    font-size: 0.78rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--text-dim);
-    margin-bottom: 8px;
-}
-.kpi-value {
-    font-size: 1.55rem;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1.1;
-}
-.kpi-sub {
-    font-size: 0.72rem;
-    color: var(--text-mute);
-    margin-top: 4px;
+    color: #6b7280;
+    margin-bottom: 0.9rem;
 }
 
-/* ══════════════════════════════════════════
-   BLOCS RÉCAP — style panel dashboard
-   ══════════════════════════════════════════ */
-.bloc {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.2rem 1.4rem;
-    margin-bottom: 0.75rem;
-    box-shadow: var(--shadow);
-}
-.bloc-title {
-    font-size: 0.65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--text-dim);
-    margin-bottom: 0.9rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 1px solid var(--border);
-}
 .ligne {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.48rem 0;
-    border-bottom: 1px solid rgba(45,55,72,0.5);
-    font-size: 0.88rem;
-    color: var(--text-dim);
+    padding: 0.45rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.92rem;
+    color: #374151;
 }
 .ligne:last-child { border-bottom: none; }
-.ligne .val { font-weight: 600; color: var(--text); }
-.ligne.total {
-    font-weight: 700;
-    color: var(--text);
-    font-size: 0.92rem;
-    padding-top: 0.7rem;
-    border-top: 1px solid var(--border);
-    border-bottom: none;
-    margin-top: 0.2rem;
-}
-.ligne.total .val { color: var(--accent); font-size: 1rem; }
+.ligne .val { font-weight: 600; color: #111827; }
+.ligne.total { font-weight: 700; color: #111827; font-size: 0.97rem; }
+.ligne.total .val { color: #2563eb; }
 
-/* ══════════════════════════════════════════
-   RÉSULTAT CASHFLOW — carte principale
-   ══════════════════════════════════════════ */
 .result-box {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 2.2rem 1.5rem;
+    border-radius: 14px;
+    padding: 2rem 1.5rem;
     text-align: center;
-    margin-bottom: 12px;
-    box-shadow: var(--shadow);
-    position: relative;
-    overflow: hidden;
+    margin-bottom: 1rem;
 }
-.result-box::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-}
-.result-box.vert::before  { background: var(--green); }
-.result-box.rouge::before { background: var(--red); }
-.result-box.bleu::before  { background: var(--accent); }
+.result-box.vert  { background: linear-gradient(135deg, #065f46, #059669); color: white; }
+.result-box.rouge { background: linear-gradient(135deg, #7f1d1d, #dc2626); color: white; }
+.result-box.bleu  { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; }
 
-.result-label {
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--text-mute);
-    margin-bottom: 0.7rem;
-}
-.result-value {
-    font-size: 3.8rem;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--text);
-}
-.result-value.vert  { color: var(--green); }
-.result-value.rouge { color: var(--red); }
-.result-unit {
-    font-size: 0.8rem;
-    color: var(--text-mute);
-    margin-top: 0.5rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
+.result-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.85; margin-bottom: 0.5rem; }
+.result-value { font-size: 3.2rem; font-weight: 700; line-height: 1; }
+.result-unit  { font-size: 1rem; opacity: 0.85; margin-top: 0.3rem; }
 
-/* ══════════════════════════════════════════
-   MÉTRIQUES SECONDAIRES — style kpi-card
-   ══════════════════════════════════════════ */
 .metric-row {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1rem 1.3rem;
-    margin-bottom: 0.6rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.75rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.85rem;
-    color: var(--text-dim);
-    box-shadow: var(--shadow);
+    font-size: 0.92rem;
+    color: #374151;
 }
-.metric-row .mval {
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: var(--text);
-}
-.metric-row .mval.vert  { color: var(--green); }
-.metric-row .mval.rouge { color: var(--red); }
+.metric-row .mval { font-weight: 700; font-size: 1.05rem; color: #111827; }
+.metric-row .mval.vert  { color: #059669; }
+.metric-row .mval.rouge { color: #dc2626; }
 
-/* ══════════════════════════════════════════
-   BOUTON CTA
-   ══════════════════════════════════════════ */
 .cta-btn {
     display: block;
     text-align: center;
-    background: linear-gradient(135deg, #4f8cff, #a855f7);
+    background: #2563eb;
     color: white !important;
-    font-weight: 700;
-    font-size: 0.92rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 1rem 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0.9rem 1rem;
     border-radius: 10px;
     text-decoration: none !important;
     margin-top: 2rem;
-    box-shadow: 0 4px 20px rgba(79,140,255,0.3);
+    box-shadow: 0 4px 14px rgba(37,99,235,0.3);
 }
 
-/* ── Gate email ── */
-.email-wrapper { max-width: 460px; margin: 4rem auto; text-align: center; }
-.legal { font-size: 0.72rem; color: var(--text-mute); margin-top: 0.8rem; }
-
-/* ── Footer ── */
-footer {
-    font-size: 0.7rem;
-    color: var(--text-mute);
+.email-wrapper {
+    max-width: 460px;
+    margin: 4rem auto;
     text-align: center;
-    margin-top: 3rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
+}
+.email-wrapper h2 { font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.4rem; }
+.email-wrapper p  { font-size: 0.9rem; color: #6b7280; margin-bottom: 1.5rem; }
+.legal { font-size: 0.72rem; color: #9ca3af; margin-top: 0.8rem; }
+
+footer {
+    font-size: 0.72rem; color: #9ca3af;
+    text-align: center; margin-top: 3rem;
+    padding-top: 1rem; border-top: 1px solid #f0f0f0;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -482,44 +309,41 @@ cf_sign  = "+" if cashflow >= 0 else ""
 st.markdown(f"""
 <div class="result-box {cf_class}">
   <div class="result-label">Cash-flow mensuel net avant impôt</div>
-  <div class="result-value {cf_class}">{cf_sign}{cashflow:,.0f} €</div>
+  <div class="result-value">{cf_sign}{cashflow:,.0f} €</div>
   <div class="result-unit">par mois</div>
 </div>
 """, unsafe_allow_html=True)
 
-# Grille KPI — 4 indicateurs clés style dashboard
-rn_cls  = "vert" if rendement_net >= 0 else "rouge"
-val10   = f"{cap10:,.0f} €" if cap10 is not None else "—"
-val20   = f"{cap20:,.0f} €" if cap20 is not None else "—"
-
+# Rendements
+rn_cls = "vert" if rendement_net >= 0 else "rouge"
 st.markdown(f"""
-<div class="kpi-grid">
-  <div class="kpi-card">
-    <div class="kpi-label">Rendement brut</div>
-    <div class="kpi-value">{rendement_brut:.2f} %</div>
-    <div class="kpi-sub">Loyer annuel / Total projet</div>
-  </div>
-  <div class="kpi-card {'green' if rendement_net >= 0 else 'red'}">
-    <div class="kpi-label">Rendement net de charges</div>
-    <div class="kpi-value">{rendement_net:.2f} %</div>
-    <div class="kpi-sub">Après déduction charges proprio</div>
-  </div>
-  <div class="kpi-card amber">
-    <div class="kpi-label">Capital remboursé à 10 ans</div>
-    <div class="kpi-value">{val10}</div>
-    <div class="kpi-sub">Enrichissement patrimonial</div>
-  </div>
-  <div class="kpi-card purple">
-    <div class="kpi-label">Capital remboursé à 20 ans</div>
-    <div class="kpi-value">{val20}</div>
-    <div class="kpi-sub">Enrichissement patrimonial</div>
-  </div>
+<div class="metric-row">
+  <span>Rendement brut</span>
+  <span class="mval">{rendement_brut:.2f} %</span>
+</div>
+<div class="metric-row">
+  <span>Rendement net de charges</span>
+  <span class="mval {rn_cls}">{rendement_net:.2f} %</span>
+</div>
+""", unsafe_allow_html=True)
+
+# Capital remboursé
+val10 = f"{cap10:,.0f} €" if cap10 is not None else "—"
+val20 = f"{cap20:,.0f} €" if cap20 is not None else "—"
+st.markdown(f"""
+<div class="metric-row">
+  <span>Capital remboursé à 10 ans</span>
+  <span class="mval">{val10}</span>
+</div>
+<div class="metric-row">
+  <span>Capital remboursé à 20 ans</span>
+  <span class="mval">{val20}</span>
 </div>
 """, unsafe_allow_html=True)
 
 # ── Bouton CTA (bas de page uniquement) ──────────────────────────────────────
 st.markdown("""
-<a class="cta-btn" href="https://calendar.app.google/54cCfHMosWJSd2zRA" target="_blank">
+<a class="cta-btn" href="https://calendly.com/david-v" target="_blank">
   📅 Prendre rendez-vous — Investissement clé en main
 </a>
 """, unsafe_allow_html=True)

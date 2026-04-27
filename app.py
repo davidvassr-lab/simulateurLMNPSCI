@@ -1,4 +1,11 @@
 import streamlit as st
+import gspread
+from google.oauth2.service_account import Credentials
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import secrets as _secrets
+from datetime import datetime
 
 # ─────────────────────────────────────────────
 # CONFIGURATION DE LA PAGE
@@ -219,13 +226,150 @@ def capital_rembourse(emprunt: float, taeg_annuel: float, duree_ans: int, annee_
 
 
 # ─────────────────────────────────────────────
-# GESTION SESSION STATE
+# GOOGLE SHEETS — CONNEXION ET OPÉRATIONS
+# ─────────────────────────────────────────────
+
+def get_gsheet():
+    """Connexion à Google Sheets via le compte de service."""
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = Credentials.from_service_account_info(
+        st.secrets["google_service_account"],
+        scopes=scopes,
+    )
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(st.secrets["gsheets"]["sheet_id"])
+    return sheet.worksheet("Emails")
+
+
+def find_row_by_email(ws, email):
+    """Retourne (row_index, row_data) ou (None, None) si introuvable."""
+    try:
+        cell = ws.find(email, in_column=1)
+        if cell:
+            return cell.row, ws.row_values(cell.row)
+        return None, None
+    except gspread.exceptions.CellNotFound:
+        return None, None
+
+
+def find_row_by_token(ws, token):
+    """Retourne (row_index, row_data) ou (None, None) si introuvable."""
+    try:
+        cell = ws.find(token, in_column=5)
+        if cell:
+            return cell.row, ws.row_values(cell.row)
+        return None, None
+    except gspread.exceptions.CellNotFound:
+        return None, None
+
+
+def register_new_email(ws, email, token):
+    """Ajoute une nouvelle ligne en_attente."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ws.append_row([email, now, "en_attente", "", token])
+
+
+def update_token_for_row(ws, row_idx, token):
+    """Met à jour le token pour une ligne existante (renvoi email)."""
+    ws.update_cell(row_idx, 5, token)
+
+
+def validate_email_by_token(ws, token):
+    """Valide le token : met à jour statut + date. Retourne l'email ou None."""
+    row_idx, row_data = find_row_by_token(ws, token)
+    if row_idx is None:
+        return None
+    email = row_data[0] if row_data else ""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ws.update_cell(row_idx, 3, "validé")
+    ws.update_cell(row_idx, 4, now)
+    return email
+
+
+# ─────────────────────────────────────────────
+# ENVOI EMAIL DE VALIDATION
+# ─────────────────────────────────────────────
+
+def send_validation_email(recipient_email: str, token: str, app_url: str):
+    """Envoie l'email de validation avec le lien d'activation."""
+    activation_link = f"{app_url}?token={token}"
+    sender = st.secrets["gmail"]["sender"]
+    password = st.secrets["gmail"]["password"]
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "✅ Votre accès au Calculateur Cash-Flow Immo — par David V."
+    msg["From"] = sender
+    msg["To"] = recipient_email
+
+    html = f"""
+    <html>
+    <body style="font-family:Arial,Helvetica,sans-serif;color:#222;max-width:560px;margin:0 auto;">
+    <p>Bonjour,</p>
+    <p>Merci pour votre inscription au <strong>Calculateur Cash-Flow Immo Avant Impôt</strong>.</p>
+    <p>Cliquez sur le bouton ci-dessous pour valider votre email et accéder gratuitement à l'outil :</p>
+    <p style="text-align:center;margin:2rem 0;">
+      <a href="{activation_link}"
+         style="background:#2563eb;color:white;padding:14px 28px;
+                border-radius:8px;text-decoration:none;font-weight:bold;font-size:1rem;">
+        ACCÉDER AU CALCULATEUR →
+      </a>
+    </p>
+    <p style="font-size:0.85rem;color:#6b7280;">Ce lien est personnel et valable 48h.</p>
+    <br>
+    <p>À très vite,</p>
+    <p>
+      <strong>David V.</strong><br>
+      Conseiller en investissement immobilier clé en main<br>
+      Hauts-de-France
+    </p>
+    </body>
+    </html>
+    """
+    msg.attach(MIMEText(html, "html"))
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(sender, password)
+        server.sendmail(sender, recipient_email, msg.as_string())
+
+
+# ─────────────────────────────────────────────
+# SESSION STATE
 # ─────────────────────────────────────────────
 
 if "access_granted" not in st.session_state:
     st.session_state.access_granted = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
+if "token_just_validated" not in st.session_state:
+    st.session_state.token_just_validated = False
+if "validation_sent" not in st.session_state:
+    st.session_state.validation_sent = False
+
+# ─────────────────────────────────────────────
+# VÉRIFICATION TOKEN DANS L'URL
+# ─────────────────────────────────────────────
+
+params = st.query_params
+url_token = params.get("token", None)
+
+if url_token and not st.session_state.access_granted:
+    with st.spinner("Validation de votre email en cours…"):
+        try:
+            ws = get_gsheet()
+            validated_email = validate_email_by_token(ws, url_token)
+            if validated_email:
+                st.session_state.access_granted = True
+                st.session_state.user_email = validated_email
+                st.session_state.token_just_validated = True
+                st.query_params.clear()
+                st.rerun()
+            else:
+                st.error("❌ Lien invalide ou déjà utilisé. Veuillez saisir votre email pour recevoir un nouveau lien.")
+        except Exception as e:
+            st.error(f"Erreur lors de la validation : impossible de contacter la base de données. Réessayez dans quelques instants.")
 
 # ─────────────────────────────────────────────
 # ÉCRAN EMAIL (GATE)
@@ -239,6 +383,11 @@ if not st.session_state.access_granted:
     </div>
     """, unsafe_allow_html=True)
 
+    # Affichage du message selon le statut en cours
+    if st.session_state.validation_sent:
+        st.success("📧 Un email de validation vous a été envoyé. Cliquez sur le lien pour accéder au calculateur.")
+        st.info("Vous n'avez pas reçu l'email ? Vérifiez vos spams ou saisissez à nouveau votre adresse ci-dessous.")
+
     with st.form("email_form"):
         st.markdown("**Entrez votre email pour accéder gratuitement à l'outil :**")
         email_input = st.text_input(
@@ -249,13 +398,42 @@ if not st.session_state.access_granted:
         submitted = st.form_submit_button("Accéder au calculateur →", use_container_width=True, type="primary")
 
         if submitted:
-            email_clean = email_input.strip()
-            if "@" in email_clean and "." in email_clean.split("@")[-1]:
-                st.session_state.user_email = email_clean
-                st.session_state.access_granted = True
-                st.rerun()
-            else:
+            email_clean = email_input.strip().lower()
+            if not ("@" in email_clean and "." in email_clean.split("@")[-1]):
                 st.error("Veuillez saisir une adresse email valide.")
+            else:
+                app_url = st.secrets.get("app", {}).get("url", "https://votre-app.streamlit.app")
+                try:
+                    ws = get_gsheet()
+                    row_idx, row_data = find_row_by_email(ws, email_clean)
+
+                    if row_data:
+                        statut = row_data[2] if len(row_data) > 2 else ""
+
+                        if statut == "validé":
+                            # CAS B — email validé → accès direct
+                            st.session_state.user_email = email_clean
+                            st.session_state.access_granted = True
+                            st.rerun()
+                        else:
+                            # CAS C — email connu mais en_attente → renvoi
+                            new_token = _secrets.token_urlsafe(32)
+                            update_token_for_row(ws, row_idx, new_token)
+                            send_validation_email(email_clean, new_token, app_url)
+                            st.session_state.validation_sent = True
+                            st.rerun()
+                    else:
+                        # CAS A — nouvel email → inscription + envoi
+                        new_token = _secrets.token_urlsafe(32)
+                        register_new_email(ws, email_clean, new_token)
+                        send_validation_email(email_clean, new_token, app_url)
+                        st.session_state.validation_sent = True
+                        st.rerun()
+
+                except smtplib.SMTPException as e:
+                    st.error("Erreur lors de l'envoi de l'email. Veuillez réessayer dans quelques instants.")
+                except Exception as e:
+                    st.error("Erreur de connexion à la base de données. Veuillez réessayer dans quelques instants.")
 
     st.markdown(
         '<p class="email-legal">En renseignant votre email, vous acceptez d\'être recontacté par David V.</p>',
@@ -266,6 +444,11 @@ if not st.session_state.access_granted:
 # ─────────────────────────────────────────────
 # CALCULATEUR PRINCIPAL
 # ─────────────────────────────────────────────
+
+# Bandeau de confirmation si validation vient d'avoir lieu
+if st.session_state.token_just_validated:
+    st.success("✅ Email validé ! Bienvenue dans le calculateur.")
+    st.session_state.token_just_validated = False
 
 # ── En-tête ──────────────────────────────────
 st.markdown('<div class="main-title">🏠 Calculateur Cash-Flow Immo<br>Avant Impôt</div>', unsafe_allow_html=True)
@@ -348,14 +531,12 @@ with col4:
     )
 
 # Calculs financement
-# Les frais de garantie dépendent de l'emprunt → on calcule en 2 passes
-# Emprunt provisoire sans frais garantie pour amorcer le calcul
 total_sans_garantie = prix_negocie + frais_notaire + frais_dossier + travaux + mobilier
 emprunt_provisoire = max(0, total_sans_garantie - apport)
 frais_garantie = round(emprunt_provisoire * 0.012)
 total_projet = total_sans_garantie + frais_garantie
 emprunt = max(0, total_projet - apport)
-# 2e passe (frais garantie sur emprunt final — converge en 1 itération)
+# 2e passe (convergence)
 frais_garantie = round(emprunt * 0.012)
 total_projet = total_sans_garantie + frais_garantie
 emprunt = max(0, total_projet - apport)
@@ -363,7 +544,6 @@ emprunt = max(0, total_projet - apport)
 taeg_decimal = taeg / 100
 mensualite = calcul_mensualite(emprunt, taeg_decimal, duree_emprunt)
 
-# Affichage récapitulatif financement
 c_a, c_b, c_c, c_d = st.columns(4)
 c_a.metric("Total Projet", f"{total_projet:,} €")
 c_b.metric("Frais de garantie (1,2%)", f"{frais_garantie:,} €")
@@ -434,7 +614,6 @@ st.markdown(f"<div class='note'>→ Gestion locative : <strong>{gestion_montant:
 # ─────────────────────────────────────────────
 st.markdown('<div class="section-title">5. Résultats</div>', unsafe_allow_html=True)
 
-# Calculs résultats
 rendement_brut = (loyer_annuel / total_projet * 100) if total_projet > 0 else 0.0
 rendement_net = ((loyer_annuel - total_charges) / total_projet * 100) if total_projet > 0 else 0.0
 cashflow_mensuel = loyer_mensuel - mensualite - (total_charges / 12)
@@ -442,7 +621,6 @@ cashflow_mensuel = loyer_mensuel - mensualite - (total_charges / 12)
 cap_10 = capital_rembourse(emprunt, taeg_decimal, duree_emprunt, 10) if duree_emprunt >= 10 else None
 cap_20 = capital_rembourse(emprunt, taeg_decimal, duree_emprunt, 20) if duree_emprunt >= 20 else None
 
-# Carte cashflow principal
 cf_class = "positive" if cashflow_mensuel > 0 else ("negative" if cashflow_mensuel < 0 else "neutral")
 cf_sign = "+" if cashflow_mensuel >= 0 else ""
 
@@ -454,7 +632,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Métriques secondaires
 st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
 r1, r2 = st.columns(2)
